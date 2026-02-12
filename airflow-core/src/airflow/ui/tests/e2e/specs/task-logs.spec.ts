@@ -43,13 +43,17 @@ test.describe("Verify task logs display", () => {
 
     dagRunId = match?.[1] ?? "";
 
+    if (!dagRunId) {
+      throw new Error(`Could not extract dagRunId from URL: ${url}`);
+    }
+
     await context.close();
   });
 
   test.beforeEach(async ({ page }) => {
     const taskInstancePage = new TaskInstancePage(page);
 
-    await taskInstancePage.navigateToTaskLogs(testDagId, dagRunId, testTaskId);
+    await taskInstancePage.navigateToTaskInstance(testDagId, dagRunId, testTaskId);
   });
 
   test("Verify log content is displayed", async ({ page }) => {
@@ -114,7 +118,7 @@ test.describe("Verify task logs display", () => {
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
-    const downloadPromise = page.waitForEvent("download");
+    const downloadPromise = page.waitForEvent("download", { timeout: 10_000 });
 
     await page.getByTestId("download-logs-button").click();
     const download = await downloadPromise;

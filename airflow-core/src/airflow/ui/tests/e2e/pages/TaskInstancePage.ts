@@ -40,10 +40,6 @@ export class TaskInstancePage extends BasePage {
     await this.navigateTo(`/dags/${dagId}/runs/${runId}/tasks/${taskId}`);
   }
 
-  public async navigateToTaskLogs(dagId: string, runId: string, taskId: string): Promise<void> {
-    await this.navigateToTaskInstance(dagId, runId, taskId);
-  }
-
   public async triggerDagAndWaitForSuccess(dagId: string): Promise<void> {
     await this.triggerDagRun(dagId);
     await this.waitForDagRunSuccess();
@@ -53,6 +49,7 @@ export class TaskInstancePage extends BasePage {
     await this.navigateToDag(dagId);
     await this.triggerButton.click();
     await this.confirmTriggerButton.click();
+    await this.page.waitForURL(/.*\/runs\/.*/, { timeout: 15_000 });
   }
 
   public async waitForDagRunSuccess(): Promise<void> {
