@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import cast
 
 from fastapi import Depends, status
@@ -59,11 +60,14 @@ def historical_metrics(
     current_time = timezone.utcnow()
     permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
 
+    start_date_dt = cast("datetime", start_date)
+    end_date_dt = cast("datetime | None", end_date)
+
     start_date_filter = DagRun.start_date >= start_date
-    if current_time >= start_date:
+    if current_time >= start_date_dt:
         start_date_filter = or_(start_date_filter, DagRun.start_date.is_(None))
 
-    effective_end_date = end_date or current_time
+    effective_end_date = end_date_dt or current_time
     end_date_filter = DagRun.end_date <= effective_end_date
     if current_time <= effective_end_date:
         end_date_filter = or_(end_date_filter, DagRun.end_date.is_(None))
@@ -87,20 +91,13 @@ def historical_metrics(
         .group_by(TaskInstance.state)
     ).all()
 
-    # Combining historical metrics response as dictionary
-    run_types_map = {dag_run_type.value: 0 for dag_run_type in DagRunType}
-    run_states_map = {dag_run_state.value: 0 for dag_run_state in DagRunState}
+    # Aggregate combined DagRun results into separate type and state maps.
+    run_types_map: dict[str, int] = {dag_run_type.value: 0 for dag_run_type in DagRunType}
+    run_states_map: dict[str, int] = {dag_run_state.value: 0 for dag_run_state in DagRunState}
 
     for run_type, state, count in dag_run_metrics:
-        if run_type in run_types_map:
-            run_types_map[run_type] += count
-        else:
-            run_types_map[str(run_type)] = run_types_map.get(str(run_type), 0) + count
-
-        if state in run_states_map:
-            run_states_map[state] += count
-        else:
-            run_states_map[str(state)] = run_states_map.get(str(state), 0) + count
+        run_types_map[run_type] = run_types_map.get(run_type, 0) + count
+        run_states_map[state] = run_states_map.get(state, 0) + count
 
     historical_metrics_response = {
         "dag_run_types": run_types_map,
