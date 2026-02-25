@@ -260,12 +260,12 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.0.1"
-AIRFLOW_UV_VERSION = "0.10.4"
+AIRFLOW_UV_VERSION = "0.10.5"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.46"
 RICH_VERSION = "14.3.3"
 PREK_VERSION = "0.3.3"
-HATCH_VERSION = "1.16.3"
+HATCH_VERSION = "1.16.4"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -1831,7 +1831,7 @@ def run_publish_docs_in_parallel(
             get_console().print(f"[warning]{entry}")
 
 
-def get_package_version_possibly_from_stable_txt(package_name: str) -> str:
+def get_package_version_possibly_from_stable_txt(package_name: str) -> str | None:
     """
     Get version for a package, trying stable.txt first, then falling back to source files.
 
@@ -1855,6 +1855,9 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str:
 
     if package_name == "helm-chart":
         return chart_version()
+
+    if package_name in ("docker-stack", "apache-airflow-providers"):
+        return None
 
     if package_name.startswith("apache-airflow-providers-"):
         provider = get_provider_distributions_metadata().get(get_short_package_name(package_name))
@@ -1938,7 +1941,7 @@ def publish_docs(
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
         version = get_package_version_possibly_from_stable_txt(pkg)
-        print(f" - {pkg}: {version}")
+        print(f" - {pkg}: {version if version else 'Unversioned'}")
     print()
     if run_in_parallel:
         run_publish_docs_in_parallel(
@@ -2257,6 +2260,7 @@ def release_prod_images(
             "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             "INSTALL_DISTRIBUTIONS_FROM_CONTEXT": "false",
             "DOCKER_CONTEXT_FILES": "./docker-context-files",
+            "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION": "false",
         }
         if commit_sha:
             build_args["COMMIT_SHA"] = commit_sha
